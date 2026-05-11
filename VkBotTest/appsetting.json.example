@@ -1,0 +1,15 @@
+{
+  "VkBot": {
+    "AccessToken": "бярюбэре_ячдю_рнйем_нр_цпсоош",
+    "PollingIntervalMs": 2000
+  },
+  "Ollama": {
+    "BaseUrl": "http://localhost:11434",
+    "Model": "llama3.2"
+  },
+  "Paths": {
+    "DataFolder": "Data",
+    "LogFile": "bot.log",
+    "HistoryFile": "history.csv"
+  }
+}
