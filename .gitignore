@@ -3,6 +3,14 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Мое
+appsettings.json
+Data/
+bot.log
+history.csv
+last_id.txt
+stats.json
+
 # User-specific files
 *.rsuser
 *.suo
