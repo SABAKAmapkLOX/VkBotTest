@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Metadata;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,18 +14,21 @@ public class StateService
     private readonly string _lastIdFile;
     private readonly string _statsFile;
     private readonly string _historyFile;
+    private readonly Logger _logger;
 
     public long LastMessageId { get; private set; }
     public Stats CurrentStats { get; private set; } = new();
 
-    public StateService(string dataFolder)
+    // При создании экземпляра передаем эти параметры
+    public StateService(string dataFolder, Logger logger)
     {
+        _logger = logger; 
         _dataFolder = dataFolder;
-        Directory.CreateDirectory(dataFolder);
+        Directory.CreateDirectory(dataFolder); // Создаем папку
 
-        _lastIdFile = Path.Combine(dataFolder, "last_id.txt");
-        _statsFile = Path.Combine(dataFolder, "stats.json");
-        _historyFile = Path.Combine(dataFolder, "history.csv");
+        _lastIdFile = Path.Combine(dataFolder, "last_id.txt"); // id пользователей в файл last id
+        _statsFile = Path.Combine(dataFolder, "stats.json"); // stats в stats.json
+        _historyFile = Path.Combine(dataFolder, "history.csv"); // Создание excel файла с историей запросов пользователей
 
         Load();
     }
@@ -32,16 +36,19 @@ public class StateService
     private void Load()
     {
         long id = 0;
+
+        //Идет определение существования файлов
         if (File.Exists(_lastIdFile))
             long.TryParse(File.ReadAllText(_lastIdFile), out id);
         LastMessageId = id;
 
         if (File.Exists(_statsFile))
         {
-            var json = File.ReadAllText(_statsFile);
-            CurrentStats = JsonSerializer.Deserialize<Stats>(json) ?? new Stats();
+            var json = File.ReadAllText(_statsFile); // Считываем
+            CurrentStats = JsonSerializer.Deserialize<Stats>(json) ?? new Stats(); // Передаем его, если нету то создаем  новый
         }
 
+        // Если нету файла то создаем 
         if (!File.Exists(_historyFile))
             File.WriteAllText(_historyFile, "Time,UserId,Message,Response\n");
     }

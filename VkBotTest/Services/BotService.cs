@@ -1,131 +1,70 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using VkBotTest.Models;
 using VkNet;
 using VkNet.Model;
-using VkBotTest.Models;
 
 namespace VkBotTest.Services;
 
 public class BotService
 {
-    private readonly VkApi _vk;
-    private readonly OllamaService _ollama;
+    private readonly BotPollingService _polling;
+    private readonly MessageRouter _router;
+    private readonly CommandHandler _commands;
+    private readonly AIResponder _ai;
+    private readonly ResponseSender _sender;
     private readonly StateService _state;
-    private readonly int _pollingInterval;
+    private readonly Logger _logger;
     private bool _ollamaAvailable;
 
-    public BotService(VkApi vk, OllamaService ollama, StateService state, int pollingInterval)
+
+    // При создании данного экземпляра передаем данные
+    public BotService(VkApi vk, OllamaService ollama, StateService state, Logger logger, int pollingInterval)
     {
-        _vk = vk;
-        _ollama = ollama;
         _state = state;
-        _pollingInterval = pollingInterval;
+        _logger = logger;
+
+        // Создаем экземпляры для всего что бы работоло :)
+        _polling = new BotPollingService(vk, state, logger, pollingInterval);
+        _router = new MessageRouter();
+        _commands = new CommandHandler(state);
+        _ai = new AIResponder(ollama, state, logger);
+        _sender = new ResponseSender(vk, logger);
     }
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(OllamaService ollama)
     {
-        _ollamaAvailable = await _ollama.IsAvailableAsync();
-        Logger.Info($"Ollama: {(_ollamaAvailable ? "подключена" : "недоступна")}");
+        _ollamaAvailable = await ollama.IsAvailableAsync();
+        _logger.Info($"Ollama: {(_ollamaAvailable ? "подключена" : "недоступна")}");
     }
 
-    //Начало работы бота
     public async Task RunAsync(CancellationToken token)
     {
-        Logger.Info("Запуск polling-цикла...");
-
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
-                //Если нет ошибок в цикле то запускаем метод
-                await PollMessagesAsync();
-                await Task.Delay(_pollingInterval, token);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Ошибка в цикле: {ex.Message}");
-                await Task.Delay(5000, token);
-            }
-        }
-
-        Logger.Info("Цикл остановлен");
+        await _polling.StartAsync(token, ProcessMessageAsync);
     }
 
-    //Проверка последних сообщений
-    private async Task PollMessagesAsync()
-    {
-        var result = await _vk.Messages.GetConversationsAsync(
-            new GetConversationsParams { Count = 20 });  //Обращаемся к вк серверам для отдачи последних 20 сообщений
-
-        //Цикл на проверку сообщений
-        foreach (var conv in result.Items)
-        {
-            var msg = conv.LastMessage;
-            if (ShouldSkip(msg)) continue;  //Метод для проверки был ли ответ на данное сообщение
-
-            //Обновляем последний id сообщения и отдаем методу для обработки
-            _state.UpdateLastId((long)msg.Id);
-            await ProcessMessageAsync(msg);
-        }
-    }
-
-    // Проверка сообщений
-    private bool ShouldSkip(VkNet.Model.Message msg)
-    {
-        if (msg == null) return true;  //Проверка на текст
-        if (msg.FromId < 0) return true;  //Проверка на сообщества 
-        if (msg.OutRead == 1) return true;
-        if (msg.Id <= _state.LastMessageId) return true;  //Проверка на id сообщения
-        if (string.IsNullOrWhiteSpace(msg.Text)) return true;  //Проверка текста
-        return false;
-    }
-
-    // Ответ на сообщения
     private async Task ProcessMessageAsync(VkNet.Model.Message msg)
     {
-        //Отправка данных для статистики и отображение в консоли последнего смс
+        if (_router.ShouldSkip(msg, _state.LastMessageId)) return;
+
         _state.IncrementMessages();
-        Logger.Info($" [{msg.FromId}]: {msg.Text}");
+        _logger.Info($" [{msg.FromId}]: {msg.Text}");
 
         string response;
+        var command = _router.DetermineCommand(msg);
 
-        //Проверка что же в сообщении
-        if (msg.Text.StartsWith("/"))
+        if (command != null)
         {
-            response = await HandleCommandAsync(msg.Text);//если сообшение начинается на /
-                                                          //то отвечаем на шаблоны 
+            response = await _commands.HandleAsync(command);
         }
         else if (_ollamaAvailable)
         {
-            //Вызываем метод для получения истории
-            var userHistory = _state.GetUserChatContext(msg.FromId.Value);
-
-            //Создаем чат и кидаем ему промпт
-            var chatMessages = new List<ChatMessage>
-            {
-                new ChatMessage
-                {
-                    role = "system",
-                    content = "Ты AI-помощник в сообществе ВКонтакте. Отвечай кратко, дружелюбо и по делу. Помни контекст переписки с этим пользователем."
-                }
-            };
-            chatMessages.AddRange(userHistory); //Обьеденение списка
-            chatMessages.Add(new ChatMessage { role = "user", content = msg.Text }); //Добовляем в список
-
-            response = await _ollama.ChatAsync(chatMessages); //Отдаем в ollama
+            response = await _ai.GenerateAsync(msg.Text, msg.FromId.Value);
         }
         else
         {
-            response = $" Эхо: {msg.Text}"; //Заглушка если что то пошло не так с ollama
+            response = $" Эхо: {msg.Text}";
         }
 
-        await SendResponseAsync(msg.PeerId, response); //Отправляем сообщение в вк
+        await _sender.SendAsync(msg.PeerId, response);
 
         _state.AppendHistory(new HistoryEntry
         {
@@ -134,37 +73,5 @@ public class BotService
             Message = msg.Text,
             Response = response
         });
-    }
-
-    //Шаблоны
-    private async Task<string> HandleCommandAsync(string cmd)
-    {
-        switch (cmd.ToLower())
-        {
-            case "/start": return "Привет!. Спрашивай что угодно!";
-            case "/help": return "Команды:\n/start - начать\n/help - помощь\n/stats - статистика\n/ping - проверка связи";
-            case "/ping": return $"Online. Uptime: {(DateTime.Now - _state.CurrentStats.StartTime).TotalMinutes:F0} мин.";
-            case "/stats": return _state.GetStatsReport();  //Отдает статистику в чат
-        }
-        return "Неизвестная команда"; //Если команда не найдена, то отправится вот это
-    }
-
-    //Отправка сообщений
-    private async Task SendResponseAsync(long? peerId, string text)
-    {
-        try
-        {
-            await _vk.Messages.SendAsync(new MessagesSendParams
-            {
-                PeerId = peerId,
-                Message = text,
-                RandomId = Random.Shared.Next()
-            });
-            Logger.Info("Ответ отправлен");
-        }
-        catch (Exception ex)
-        {
-            Logger.Error($"Не смог отправить ответ: {ex.Message}");
-        }
     }
 }

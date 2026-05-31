@@ -12,63 +12,65 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        Console.WriteLine("VK BOT TEST v3.1 (Chat Context Isolation)\n");
+        Console.WriteLine("VK BOT");
 
-        //Загруска конфигурации из json файлика
+        // Загрузка конфигурации
         var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsetting.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
-        //Создание папки data и помещения туда логов и всего такого
         var dataFolder = config["Paths:DataFolder"] ?? "Data";
-        Logger.Init(dataFolder);
-        Logger.Info("Конфигурация загружена");
 
-        //Загрузка в переменные данных с конфигуроочного json файлика
+        // Создаём экземпляры
+        var logger = new Logger(dataFolder);
+        logger.Info("Конфигурация загружена"); // После создания logger говорим в консоль о правильности загруженных конфигов
+
+        // Передаем нужные параметры из json 
         var token = config["VkBot:AccessToken"];
         var pollingInterval = int.Parse(config["VkBot:PollingIntervalMs"] ?? "2000");
         var ollamaUrl = config["Ollama:BaseUrl"] ?? "http://localhost:11434";
         var ollamaModel = config["Ollama:Model"] ?? "llama3.2";
 
-        //Инициализациия и авторизация 
+        // Создаем экземпляр vk и авторизируемся с последущем успешном сообщение в консоль
         var vk = new VkApi();
-        vk.Authorize(new ApiAuthParams { AccessToken = token });
-        Logger.Info("VK API авторизован");
+        vk.Authorize(new ApiAuthParams { AccessToken = token }); // Авторизация
+        logger.Info("VK API авторизован");
 
-        //Отдаем месторасположение папки data и записываем туда логи и всю инфу
-        var state = new StateService(dataFolder);
+        // Создаем экземпляр сервиса управления состояние бота
+        var state = new StateService(dataFolder, logger);
         state.SetStartTime();
 
-        //Отдаем ollama ссылку для отпраки http запросов и модель
-        var ollama = new OllamaService(ollamaUrl, ollamaModel);
+        // Создаем экземляр ollama для работы с ии с передаем параметры
+        var ollama = new OllamaService(ollamaUrl, ollamaModel, logger);
 
-        //Отдаем все настроенные обьекты боту для работы бота
-        var bot = new BotService(vk, ollama, state, pollingInterval);
-        await bot.InitializeAsync();
+        // Создаем экземляр бота и передаем ему параметры
+        var bot = new BotService(vk, ollama, state, logger, pollingInterval);
+        await bot.InitializeAsync(ollama);
 
+        // Поидее для правильной отсановки используется ctrl + c, добавил по приколу
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (s, e) =>
         {
             e.Cancel = true;
-            Logger.Info("Получен сигнал остановки...");
+            logger.Info("Получен сигнал остановки...");
             cts.Cancel();
         };
 
-        Logger.Info($"Бот запущен. Последнее сообщение: {state.LastMessageId}");
+        // Отправляем  сообщение в консоль об успешном запуске
+        logger.Info($"Бот запущен. Последнее сообщение: {state.LastMessageId}");
 
-        //Запуск бота 
         try
         {
-            await bot.RunAsync(cts.Token);
+            await bot.RunAsync(cts.Token); // Поехали!!!
         }
         catch (Exception ex)
         {
-            Logger.Error($"Критическая ошибка: {ex.Message}");
+            logger.Error($"Критическая ошибка: {ex.Message}");
         }
         finally
         {
-            Logger.Info($" Завершено. Обработано сообщений: {state.CurrentStats.TotalMessages}");
+            logger.Info($"Завершено. Обработано сообщений: {state.CurrentStats.TotalMessages}");
         }
     }
 }

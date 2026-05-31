@@ -8,10 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="appsetting.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameWorkCore" Version="8.0.26" />
     <PackageReference Include="Microsoft.EntityFrameWorkCore.Sqlite" Version="8.0.26" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.7" />
@@ -21,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="appsetting.json">
+    <Content Include="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

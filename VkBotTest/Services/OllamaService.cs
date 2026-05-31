@@ -13,10 +13,13 @@ public class OllamaService
     private readonly HttpClient _http;
     private readonly string _baseUrl;
     private readonly string _model;
+    private readonly Logger _logger;
 
-    public OllamaService(string baseUrl, string model)
+    // При создании экземпляра передаем параметры в данный конструктор
+    public OllamaService(string baseUrl, string model, Logger logger)
     {
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        _logger = logger;
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(300) };
         _baseUrl = baseUrl.TrimEnd('/');
         _model = model;
     }
@@ -42,12 +45,12 @@ public class OllamaService
         }
         catch (TaskCanceledException)
         {
-            Logger.Error("Ollama: тайм-аут (слишком длинный контекст?)");
+            _logger.Error("Ollama: тайм-аут (слишком длинный контекст?)");
             return "Ответ занимает слишком много времени. Попробуйте позже.";
         }
         catch (Exception ex)
         {
-            Logger.Error($"Ollama Chat ошибка: {ex.Message}");
+            _logger.Error($"Ollama Chat ошибка: {ex.Message}");
             return "️ AI временно недоступен.";
         }
     }
