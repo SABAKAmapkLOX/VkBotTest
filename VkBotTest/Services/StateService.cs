@@ -16,7 +16,6 @@ public class StateService
     private readonly string _historyFile;
     private readonly Logger _logger;
 
-    public long LastMessageId { get; private set; }
     public Stats CurrentStats { get; private set; } = new();
 
     // При создании экземпляра передаем эти параметры
@@ -26,7 +25,6 @@ public class StateService
         _dataFolder = dataFolder;
         Directory.CreateDirectory(dataFolder); // Создаем папку
 
-        _lastIdFile = Path.Combine(dataFolder, "last_id.txt"); // id пользователей в файл last id
         _statsFile = Path.Combine(dataFolder, "stats.json"); // stats в stats.json
         _historyFile = Path.Combine(dataFolder, "history.csv"); // Создание excel файла с историей запросов пользователей
 
@@ -37,26 +35,16 @@ public class StateService
     {
         long id = 0;
 
-        //Идет определение существования файлов
-        if (File.Exists(_lastIdFile))
-            long.TryParse(File.ReadAllText(_lastIdFile), out id);
-        LastMessageId = id;
-
         if (File.Exists(_statsFile))
         {
             var json = File.ReadAllText(_statsFile); // Считываем
             CurrentStats = JsonSerializer.Deserialize<Stats>(json) ?? new Stats(); // Передаем его, если нету то создаем  новый
         }
 
-        // Если нету файла то создаем 
-        if (!File.Exists(_historyFile))
+        // КОСТЫЛЬ
+        if (File.Exists(_historyFile))
+            File.Delete(_historyFile);
             File.WriteAllText(_historyFile, "Time,UserId,Message,Response\n");
-    }
-
-    public void UpdateLastId(long id)
-    {
-        LastMessageId = id;
-        File.WriteAllText(_lastIdFile, id.ToString());
     }
 
     public void IncrementMessages()

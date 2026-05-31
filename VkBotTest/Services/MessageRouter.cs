@@ -32,12 +32,11 @@ public class MessageRouter
 
 
     // Проверка сообщений
-    public bool ShouldSkip(VkNet.Model.Message msg, long lastMessageId)
+    public bool ShouldSkip(Message msg)
     {
         if (msg == null) return true;
         if (msg.FromId < 0) return true;           // Не группы
         if (msg.OutRead == 1) return true;         // Не исходящие
-        if (msg.Id == lastMessageId) return true;  // Уже обработано
         if (string.IsNullOrWhiteSpace(msg.Text)) return true;
         return false;
     }

@@ -16,7 +16,7 @@ public class ResponseSender
     }
 
     //Отправляет сообщение с клавиатурой
-    public async Task SendAsync(long? peerId, string text, bool showKeyboard = false)
+    public async Task SendAsync(long? peerId, string text, bool handler, bool showKeyboard = false)
     {
         try
         {
@@ -27,6 +27,11 @@ public class ResponseSender
                 RandomId = Random.Shared.Next(),
                 Keyboard = KeyboardBuilderFactory.CreateInlineKeyboard().Build()
             };
+
+            if (handler == true)
+            {
+                sendParams.Keyboard = KeyboardBuilderFactory.CreateMainKeyboard().Build();
+            }
 
             if (showKeyboard)
             {

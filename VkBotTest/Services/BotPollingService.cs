@@ -35,7 +35,6 @@ public class BotPollingService
                     var msg = conv.LastMessage;
                     if (msg == null) continue;
 
-                    _state.UpdateLastId((long)msg.Id);
                     await onMessage(msg);
                 }
 

@@ -41,9 +41,10 @@ public class BotService
         await _polling.StartAsync(token, ProcessMessageAsync);
     }
 
-    private async Task ProcessMessageAsync(VkNet.Model.Message msg)
+    private async Task ProcessMessageAsync(Message msg)
     {
-        if (_router.ShouldSkip(msg, _state.LastMessageId)) return;
+        bool boolHandler = false;
+        if (_router.ShouldSkip(msg)) return;
 
         _state.IncrementMessages();
         _logger.Info($" [{msg.FromId}]: {msg.Text}");
@@ -54,6 +55,7 @@ public class BotService
         if (command != null)
         {
             response = await _commands.HandleAsync(command);
+            boolHandler = true;
         }
         else if (_ollamaAvailable)
         {
@@ -64,7 +66,7 @@ public class BotService
             response = $" Эхо: {msg.Text}";
         }
 
-        await _sender.SendAsync(msg.PeerId, response);
+        await _sender.SendAsync(msg.PeerId, response, boolHandler);
 
         _state.AppendHistory(new HistoryEntry
         {
