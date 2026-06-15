@@ -30,9 +30,11 @@ public class AIResponder
             new ChatMessage
             {
                 role = "system",
-                content = "Ты AI-помощник в сообществе ВКонтакте. Отвечай кратко, дружелюбно и по делу. Помни контекст переписки с этим пользователем."
+                content = "content = \"Ты дружелюбный помощник Джарвис в сообществе ВКонтакте. Отвечай полезно, интересно и развернуто, но без воды. Если не знаешь ответа, так и скажи. Помни контекст переписки.\""
             }
         };
+
+        _logger.Info("Ответ отправен на обработку ии");
 
         chatMessages.AddRange(userHistory);
         chatMessages.Add(new ChatMessage { role = "user", content = text });

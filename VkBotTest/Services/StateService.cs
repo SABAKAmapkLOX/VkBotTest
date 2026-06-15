@@ -19,6 +19,7 @@ public class StateService
         _logger = logger;
         _dataFolder = dataFolder;
         Directory.CreateDirectory(dataFolder); // Создаем папку
+        _lastIdFile = Path.Combine(dataFolder, "last_id.txt");
 
         _statsFile = Path.Combine(dataFolder, "stats.json"); // stats в stats.json
         _historyFile = Path.Combine(dataFolder, "history.csv"); // Создание excel файла с историей запросов пользователей
@@ -145,5 +146,17 @@ public class StateService
     {
         CurrentStats.StartTime = DateTime.Now;
         SaveStats();
+    }
+
+    // Добавь методы:
+    public long GetLastProcessedId()
+    {
+        if (!File.Exists(_lastIdFile)) return 0;
+        return long.TryParse(File.ReadAllText(_lastIdFile), out var id) ? id : 0;
+    }
+
+    public void SaveLastProcessedId(long id)
+    {
+        File.WriteAllText(_lastIdFile, id.ToString());
     }
 }

@@ -45,6 +45,9 @@ public class BotService
 
     private async Task ProcessMessageAsync(Message msg)
     {
+        var lastId = _state.GetLastProcessedId();
+        if (msg.Id <= lastId) return;
+
         if (_router.ShouldSkip(msg)) return;
         _state.IncrementMessages();
         _logger.Info($"[{msg.FromId}]: {msg.Text}");
@@ -96,6 +99,7 @@ public class BotService
 
         await _sender.SendAsync(msg.PeerId, response, command != null);
         _state.AppendHistory(new HistoryEntry { Time = DateTime.Now, UserId = msg.FromId.Value, Message = msg.Text, Response = response });
+        _state.SaveLastProcessedId((long)msg.Id);
     }
 
     public async Task CheckRemindersAsync(VkApi vk)
