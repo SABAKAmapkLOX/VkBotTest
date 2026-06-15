@@ -1,4 +1,7 @@
-﻿using VkBotTest.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using VkBotTest.Models;
 
 namespace VkBotTest.Services;
 
@@ -15,8 +18,9 @@ public class AIResponder
         _logger = logger;
     }
 
-
-    /// Отправка сообщения в ии с последущим ответом
+    /// <summary>
+    /// Отправка сообщения в ИИ с последующим ответом
+    /// </summary>
     public async Task<string> GenerateAsync(string text, long userId)
     {
         var userHistory = _state.GetUserChatContext(userId);
@@ -29,6 +33,7 @@ public class AIResponder
                 content = "Ты AI-помощник в сообществе ВКонтакте. Отвечай кратко, дружелюбно и по делу. Помни контекст переписки с этим пользователем."
             }
         };
+
         chatMessages.AddRange(userHistory);
         chatMessages.Add(new ChatMessage { role = "user", content = text });
 

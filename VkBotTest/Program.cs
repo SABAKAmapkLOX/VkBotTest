@@ -44,8 +44,10 @@ class Program
         // Создаем экземляр ollama для работы с ии с передаем параметры
         var ollama = new OllamaService(ollamaUrl, ollamaModel, logger);
 
+        var reminders = new ReminderService(dataFolder, logger);
+
         // Создаем экземляр бота и передаем ему параметры
-        var bot = new BotService(vk, ollama, state, logger, pollingInterval);
+        var bot = new BotService(vk, ollama, state, logger, pollingInterval, reminders);
         await bot.InitializeAsync(ollama);
 
         // Поидее для правильной отсановки используется ctrl + c, добавил по приколу

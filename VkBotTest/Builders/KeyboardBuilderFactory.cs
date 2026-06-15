@@ -16,7 +16,9 @@ public static class KeyboardBuilderFactory
         keyboard.AddButton("Помощь", "/help", KeyboardButtonColor.Secondary);
         keyboard.AddLine();
         // Ряд 2
-        keyboard.AddButton("Проверка связи", "/ping", KeyboardButtonColor.Default);
+        keyboard.AddButton("Время работы", "/ping", KeyboardButtonColor.Default);
+        keyboard.AddButton("Посмотреть напоминания", "/reminders", KeyboardButtonColor.Default);
+        keyboard.AddButton("Удалить напоминания", "/clearremind", KeyboardButtonColor.Default);
 
         return keyboard;
     }

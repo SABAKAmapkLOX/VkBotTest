@@ -51,7 +51,7 @@ public class OllamaService
         catch (Exception ex)
         {
             _logger.Error($"Ollama Chat ошибка: {ex.Message}");
-            return "️ AI временно недоступен.";
+            return "AI временно недоступен.";
         }
     }
 

@@ -1,4 +1,8 @@
-﻿using VkNet;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using VkBotTest.Models;
+using VkNet;
 using VkNet.Model;
 
 namespace VkBotTest.Services;
@@ -9,11 +13,14 @@ public class BotPollingService
     private readonly StateService _state;
     private readonly Logger _logger;
     private readonly int _pollingInterval;
+    private readonly ReminderService _reminders;
+    private int _reminderCounter;
 
-    public BotPollingService(VkApi vk, StateService state, Logger logger, int pollingInterval)
+    public BotPollingService(VkApi vk, StateService state, ReminderService reminders, Logger logger, int pollingInterval)
     {
         _vk = vk;
         _state = state;
+        _reminders = reminders;
         _logger = logger;
         _pollingInterval = pollingInterval;
     }
@@ -38,7 +45,26 @@ public class BotPollingService
                     await onMessage(msg);
                 }
 
-                await Task.Delay(_pollingInterval, token);
+                _reminderCounter++;
+                if (_reminderCounter >= 15) // каждые ~30 секунд
+                {
+                    foreach (var r in _reminders.GetDue())
+                    {
+                        try
+                        {
+                            await _vk.Messages.SendAsync(new MessagesSendParams
+                            {
+                                UserId = r.UserId,
+                                Message = $"Напоминание: {r.Text}",
+                                RandomId = new Random().Next()
+                            });
+                            _reminders.MarkSent(r.Id);
+                        }
+                        catch (Exception ex) { _logger.Error($"Ошибка напоминания: {ex.Message}"); }
+                    }
+                    _reminderCounter = 0;
+                }
+                    await Task.Delay(_pollingInterval, token);
             }
             catch (OperationCanceledException)
             {
