@@ -1,9 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
+﻿using System.Text.Json;
 using VkBotTest.Models;
 
 namespace VkBotTest.Services;
@@ -21,7 +16,7 @@ public class StateService
     // При создании экземпляра передаем эти параметры
     public StateService(string dataFolder, Logger logger)
     {
-        _logger = logger; 
+        _logger = logger;
         _dataFolder = dataFolder;
         Directory.CreateDirectory(dataFolder); // Создаем папку
 
@@ -44,7 +39,7 @@ public class StateService
         // КОСТЫЛЬ
         if (File.Exists(_historyFile))
             File.Delete(_historyFile);
-            File.WriteAllText(_historyFile, "Time,UserId,Message,Response\n");
+        File.WriteAllText(_historyFile, "Time,UserId,Message,Response\n");
     }
 
     public void IncrementMessages()
@@ -61,7 +56,18 @@ public class StateService
 
     public void AppendHistory(HistoryEntry entry)
     {
-        var line = $"{entry.Time:yyyy-MM-dd HH:mm:ss},{entry.UserId},\"{entry.Message.Replace("\"", "\"\"")}\",\"{entry.Response.Replace("\"", "\"\"")}\"";
+        // Заменяем переносы строк и экранируем кавычки
+        var message = entry.Message
+            .Replace("\r", " ")
+            .Replace("\n", " ")
+            .Replace("\"", "\"\"");
+
+        var response = entry.Response
+            .Replace("\r", " ")
+            .Replace("\n", " ")
+            .Replace("\"", "\"\"");
+
+        var line = $"{entry.Time:yyyy-MM-dd HH:mm:ss},{entry.UserId},\"{message}\",\"{response}\"";
         File.AppendAllText(_historyFile, line + Environment.NewLine);
     }
 
@@ -72,16 +78,23 @@ public class StateService
 
         foreach (var line in File.ReadLines(_historyFile).Skip(1))
         {
-            var parts = line.Split(',', 4);
-            if (parts.Length == 4)
+            try
             {
-                list.Add(new HistoryEntry
+                var parts = line.Split(',', 4);
+                if (parts.Length == 4)
                 {
-                    Time = DateTime.Parse(parts[0]),
-                    UserId = long.Parse(parts[1]),
-                    Message = parts[2].Trim('"'),
-                    Response = parts[3].Trim('"')
-                });
+                    list.Add(new HistoryEntry
+                    {
+                        Time = DateTime.Parse(parts[0]),
+                        UserId = long.Parse(parts[1]),
+                        Message = parts[2].Trim('"'),
+                        Response = parts[3].Trim('"')
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Ошибка парсинга строки истории: {ex.Message}");
             }
         }
         return list;
